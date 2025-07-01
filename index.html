@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v2.0</title>
+    <title>迈凯伦 v1.0</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -94,12 +94,15 @@
         <div class="modal-dialog modal-dialog-centered" style="max-width: 280px; margin: auto;">
             <div class="modal-content" style="text-align: center;">
                 <div class="modal-header border-0 pb-0">
-
+                    <h5 class="modal-title text-danger fs-6">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        提示
+                    </h5>
                     <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" style="height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
                     <i class="bi bi-info-circle-fill text-primary fs-4 mb-2"></i>
-                    <p class="mb-0 fs-6">请先选择一条可用线路</p>
+                    <p class="mb-0 fs-6">请先选择一条线路</p>
                 </div>
                 <div class="modal-footer border-0 justify-content-center">
                     <button type="button" class="btn btn-primary btn-sm px-3" data-bs-dismiss="modal">确定</button>
@@ -198,7 +201,7 @@
                 element.text("不可用").removeClass("ping-good").addClass("ping-bad");
                 setTimeout(function() {
                     pingHost(host, element);
-                }, 30000);
+                }, 3000);
             };
             img.src = host + "/favicon.ico?" + start;
         }
