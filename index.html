@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦线路选择 v1.0</title>
+    <title>迈凯伦 v1.0</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -157,24 +157,14 @@
             var selectLine = getCookie('selline');
             console.log("Current selected line from cookie:", selectLine);
             if (selectLine && selectLine.length > 0) {
-            // Ensure HTTPS protocol
-            var httpsUrl = selectLine.startsWith('http://') ? 
-                selectLine.replace('http://', 'https://') : 
-                selectLine.startsWith('https://') ? selectLine : 'https://' + selectLine;
-            
-            $.ajax({
-                type: "get",
-                cache: false,
-                url: httpsUrl + "/Api/ApiWeb/LoginCheckStateCb",
-                dataType: "jsonp",
-                jsonp: 'cb',
-                success: function (data) {
-                        if (data.Code == 1) {
-                            $("main").hide();
-                            $("iframe").attr("src", selectLine + '/User').show();
-                        }
-                    }
-                });
+                // Ensure HTTPS protocol
+                var httpsUrl = selectLine.startsWith('http://') ? 
+                    selectLine.replace('http://', 'https://') : 
+                    selectLine.startsWith('https://') ? selectLine : 'https://' + selectLine;
+                
+                console.log("Loading saved line:", httpsUrl);
+                $("main").hide();
+                $("iframe").attr("src", httpsUrl + '/User').show();
             }
             $.ajax({
                 type: "get",
@@ -262,9 +252,15 @@
                 
                 if (selectedLine) {
                     console.log("Selected line exists, proceeding...");
-                    addCookie('selline', selectedLine, 240, "", "");
+                    // Ensure HTTPS protocol
+                    var httpsUrl = selectedLine.startsWith('http://') ? 
+                        selectedLine.replace('http://', 'https://') : 
+                        selectedLine.startsWith('https://') ? selectedLine : 'https://' + selectedLine;
+                    
+                    console.log("Final URL to load:", httpsUrl);
+                    addCookie('selline', httpsUrl, 240, "", "");
                     $("main").hide();
-                    $("iframe").attr("src", selectedLine).show();
+                    $("iframe").attr("src", httpsUrl).show();
                 } else {
                     console.log("No line selected, attempting to show modal");
                     try {
