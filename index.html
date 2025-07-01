@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.0</title>
+    <title>迈凯伦线路选择 v1.0</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -89,7 +89,7 @@
     </main>
     <iframe style=" width:100%; height:100%; display:none;"></iframe>
     
-    <!-- Alert Modal -->
+    <!-- 警告弹窗 -->
     <div class="modal fade" id="alertModal" tabindex="-1" aria-hidden="true" style="display: none;">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 280px; margin: auto;">
             <div class="modal-content" style="text-align: center;">
@@ -128,23 +128,23 @@
             </button>
         </div>
     </script>
-    <!-- Load required libraries -->
+    <!-- 加载所需库 -->
     <script src="https://cdn.staticfile.org/art-template/4.13.2/lib/template-web.min.js"></script>
     <script src="https://cdn.staticfile.org/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdn.staticfile.org/bootstrap/5.2.2/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Initialize Bootstrap components
+        // 初始化Bootstrap组件
         $(document).ready(function() {
-            // Initialize tooltips and popovers
+            // 初始化工具提示和弹出框
             $('[data-bs-toggle="tooltip"]').tooltip();
             $('[data-bs-toggle="popover"]').popover();
             
-            // Debug modal initialization
+            // 调试模态框初始化
             console.log("Initializing modal...");
             var alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
             console.log("Modal initialized:", alertModal);
             
-            // Test modal show
+            // 测试模态框显示
             $('#testModalBtn').click(function() {
                 alertModal.show();
             });
@@ -152,13 +152,7 @@
     </script>
     <script type="text/javascript">
         $(document).ready(function() {
-            console.log("Document ready, initializing...");
-            
-            // Test jQuery is working
-            console.log("jQuery test:", $("#enterBtn").length);
-            
             var selectLine = getCookie('selline');
-            console.log("Current selected line from cookie:", selectLine);
             if (selectLine && selectLine.length > 0) {
                 $.ajax({
                     type: "get",
@@ -195,13 +189,16 @@
             img.onload = function() {
                 var end = new Date().getTime();
                 var latency = end - start;
-                element.text("可用 " + latency + "ms").removeClass("ping-bad").addClass("ping-good");
+                element.text("可用 " + latency + "ms").removeClass("ping-bad ping-medium").addClass("ping-good");
             };
             img.onerror = function() {
-                element.text("不可用").removeClass("ping-good").addClass("ping-bad");
+                element.text("不可用").removeClass("ping-good ping-medium").addClass("ping-bad");
                 setTimeout(function() {
                     pingHost(host, element);
                 }, 3000);
+            };
+            img.onerror = img.onabort = function() {
+                element.text("检测失败").removeClass("ping-good ping-bad").addClass("ping-medium");
             };
             img.src = host + "/favicon.ico?" + start;
         }
@@ -210,7 +207,7 @@
             var html = $(template("tpl-lines", data.lines));
             $("#block-selLines").html(html[0]);
             
-            // Ping all hosts after rendering
+            // 渲染完成后对所有主机进行ping测试
             $(".line-card").each(function() {
                 var host = $(this).data("host");
                 var pingElement = $(this).find(".ping-status");
@@ -225,34 +222,18 @@
             selectedLine = $(this).data("host");
         });
 
-            // Bind enter button click with better debugging
+            // 绑定进入按钮点击事件(带调试)
             $(document).on('click', '#enterBtn', function() {
-                console.log("Enter button clicked");
-                console.log("Current selectedLine:", selectedLine);
-                
                 if (selectedLine) {
-                    console.log("Selected line exists, proceeding...");
                     addCookie('selline', selectedLine, 240, "", "");
                     $("main").hide();
                     $("iframe").attr("src", selectedLine).show();
                 } else {
-                    console.log("No line selected, attempting to show modal");
                     try {
                         var modalEl = document.getElementById('alertModal');
-                        console.log("Modal element found:", modalEl);
-                        
-                        var modal = bootstrap.Modal.getInstance(modalEl);
-                        console.log("Existing modal instance:", modal);
-                        
-                        if (!modal) {
-                            console.log("Creating new modal instance");
-                            modal = new bootstrap.Modal(modalEl);
-                        }
-                        
+                        var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
                         modal.show();
-                        console.log("Modal shown successfully");
                     } catch (e) {
-                        console.error("Error showing modal:", e);
                         alert("请先选择一条可用线路");
                     }
                 }
@@ -263,35 +244,23 @@
                 var modal = new bootstrap.Modal(document.getElementById('alertModal'));
                 modal.show();
             });
-        function getCookie(objName) {
-            var value = "";
-            var arrStr = document.cookie.split("; ");
-            for (var i = 0; i < arrStr.length; i++) {
-                var temp = arrStr[i].split("=");
-                if (temp.length == 2) {
-                    if (temp[0] == objName) {
-                        value = unescape(temp[1]);
-                        break;
-                    }
-                }
-            }
-            return value;
+        function getCookie(name) {
+            return document.cookie.split('; ').reduce((r, v) => {
+                const parts = v.split('=');
+                return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+            }, '');
         }
-        function addCookie(objName, objValue, objHours, objDomain, objPath) {
-            var str = objName + "=" + escape(objValue);
-            if (objHours > 0) {
-                var date = new Date();
-                var ms = objHours * 3600 * 1000;
-                date.setTime(date.getTime() + ms);
-                str += "; expires=" + date.toGMTString();
+        
+        function addCookie(name, value, hours, domain, path) {
+            let cookie = `${name}=${encodeURIComponent(value)}`;
+            if (hours > 0) {
+                const date = new Date();
+                date.setTime(date.getTime() + hours * 3600 * 1000);
+                cookie += `; expires=${date.toUTCString()}`;
             }
-            if (objDomain != "") {
-                str += "; domain=" + objDomain;
-            }
-            if (objPath != "") {
-                str += "; path=" + objPath;
-            }
-            document.cookie = str;
+            if (domain) cookie += `; domain=${domain}`;
+            if (path) cookie += `; path=${path}`;
+            document.cookie = cookie;
         }
     </script>
 </body>
