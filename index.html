@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦线路选择 v1.1</title>
+    <title>迈凯伦 v1.2</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -188,19 +188,27 @@
         });
         function pingHost(host, element) {
             var start = new Date().getTime();
-            var img = new Image();
-            img.onload = function() {
+            var controller = new AbortController();
+            var signal = controller.signal;
+            
+            // 设置5秒超时
+            setTimeout(() => controller.abort(), 5000);
+            
+            fetch(host + "/Api/ApiWeb/LoginCheckStateCb?cb=ping", {
+                signal: signal,
+                mode: 'no-cors'
+            })
+            .then(() => {
                 var end = new Date().getTime();
                 var latency = end - start;
                 element.text("可用 " + latency + "ms").removeClass("ping-bad").addClass("ping-good");
-            };
-            img.onerror = function() {
+            })
+            .catch(() => {
                 element.text("不可用").removeClass("ping-good").addClass("ping-bad");
                 setTimeout(function() {
                     pingHost(host, element);
                 }, 30000);
-            };
-            img.src = host + "/favicon.ico?" + start;
+            });
         }
 
         function JsonpData(data) {
