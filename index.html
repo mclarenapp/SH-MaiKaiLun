@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦线路选择 v1.0</title>
+    <title>迈凯伦线路选择 v1.1</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -198,7 +198,7 @@
                 element.text("不可用").removeClass("ping-good").addClass("ping-bad");
                 setTimeout(function() {
                     pingHost(host, element);
-                }, 3000);
+                }, 30000);
             };
             img.src = host + "/favicon.ico?" + start;
         }
