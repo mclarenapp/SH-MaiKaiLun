@@ -116,9 +116,45 @@ function pingTest(url, optionElement) {
     console.log("当前环境:", isGitHubPages ? "GitHub Pages" : "本地环境");
     console.log("检测URL:", url);
 
+        // 强制使用HTTPS
+        url = url.replace(/^http:/, 'https:');
+        
         if(isGitHubPages) {
-            // 在GitHub Pages环境下使用第三方CORS代理检测
-            var proxyUrl = "https://cors-anywhere.herokuapp.com/" + encodeURIComponent(url);
+            // 在GitHub Pages环境下使用多个CORS代理检测
+            var proxyUrls = [
+                "https://corsproxy.io/?" + encodeURIComponent(url),
+                "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+                "https://thingproxy.freeboard.io/fetch/" + encodeURIComponent(url)
+            ];
+            
+            var currentProxy = 0;
+            var tryNextProxy = function() {
+                if(currentProxy >= proxyUrls.length) {
+                    console.log("所有代理服务均失败");
+                    updateStatus(false, startTime, currentText, optionElement);
+                    return;
+                }
+                
+                var proxyUrl = proxyUrls[currentProxy];
+                console.log("尝试代理:", proxyUrl);
+                
+                $.ajax({
+                    url: proxyUrl,
+                    type: "GET",
+                    timeout: 5000,
+                    success: function(response, status, xhr) {
+                        console.log("代理成功:", proxyUrl);
+                        updateStatus(true, startTime, currentText, optionElement);
+                    },
+                    error: function(xhr, status, error) {
+                        console.log("代理失败:", proxyUrl, "错误:", error);
+                        currentProxy++;
+                        tryNextProxy();
+                    }
+                });
+            };
+            
+            tryNextProxy();
             $.ajax({
                 url: proxyUrl,
                 type: "GET",
