@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.2</title>
+    <title>迈凯伦 v1.3</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -23,6 +23,9 @@
         </div>
         <div id="block-selLines">
 
+        </div>
+        <div class="text-center mt-4">
+            <a href="network_diagnostic.html" class="btn btn-outline-primary">高级网络诊断工具</a>
         </div>
     </main>
     <iframe style="position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; display:none;"></iframe>
@@ -81,9 +84,11 @@
             }
             
             // 初始检测
-            refreshPing();
-            // 设置3秒自动刷新(调试用)
-            setInterval(refreshPing, 10000);
+            setTimeout(function() {
+                refreshPing();
+                // 设置10秒自动刷新
+                setInterval(refreshPing, 10000);
+            }, 500); // 延迟500ms确保DOM完全加载
             
             // 高亮选中的选项
             var selectLine = getCookie('selline');
@@ -96,69 +101,41 @@
             }
         }
 
-        function pingTest(url, optionElement) {
-            var startTime = performance.now();
-            var checkMethods = [
-                // 方法1: 尝试JSONP方式检测API接口
-                function() {
-                    return $.ajax({
-                        url: url + "/Api/ApiWeb/LoginCheckStateCb",
-                        type: "GET",
-                        dataType: "jsonp",
-                        jsonp: 'cb',
-                        timeout: 2000
-                    });
-                },
-                // 方法2: 尝试直接访问首页
-                function() {
-                    return $.ajax({
-                        url: url,
-                        type: "GET",
-                        timeout: 2000
-                    });
-                },
-                // 方法3: 尝试加载favicon
-                function() {
-                    var dfd = $.Deferred();
-                    var img = new Image();
-                    img.onload = function() { dfd.resolve(); };
-                    img.onerror = function() { dfd.reject(); };
-                    img.src = url + "/favicon.ico?" + new Date().getTime();
-                    setTimeout(function() { dfd.reject(); }, 2000);
-                    return dfd.promise();
-                }
-            ];
+function pingTest(url, optionElement) {
+    var startTime = performance.now();
+    
+    // 重置状态为检测中
+    optionElement.attr("data-ping", "-1");
+    var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
+    optionElement.text(currentText + " - 检测中...");
+    optionElement.removeClass("option-available option-unavailable");
 
-            var currentMethod = 0;
-            var tryNextMethod = function() {
-                if (currentMethod >= checkMethods.length) {
-                    // 所有方法都失败
-                    optionElement.attr("data-ping", "-1");
-                    var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
-                    optionElement.text(currentText + " - 不可用");
-                    optionElement.removeClass("option-available").addClass("option-unavailable");
-                    return;
-                }
+    // 使用Image对象加载favicon.ico检测线路状态
+    var img = new Image();
+    var timeout = setTimeout(function() {
+        img.onload = img.onerror = null;
+        optionElement.attr("data-ping", "-1");
+        optionElement.text(currentText + " - 不可用");
+        optionElement.removeClass("option-available").addClass("option-unavailable");
+    }, 2000);
 
-                checkMethods[currentMethod]().then(
-                    function() {
-                        // 成功
-                        var latency = Math.round(performance.now() - startTime);
-                        optionElement.attr("data-ping", latency);
-                        var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
-                        optionElement.text(currentText + " - " + latency + "ms (可用)");
-                        optionElement.removeClass("option-unavailable").addClass("option-available");
-                    },
-                    function() {
-                        // 失败，尝试下一个方法
-                        currentMethod++;
-                        tryNextMethod();
-                    }
-                );
-            };
+    img.onload = function() {
+        clearTimeout(timeout);
+        var latency = Math.round(performance.now() - startTime);
+        optionElement.attr("data-ping", latency);
+        optionElement.text(currentText + " - " + latency + "ms (可用)");
+        optionElement.removeClass("option-unavailable").addClass("option-available");
+    };
 
-            tryNextMethod();
-        }
+    img.onerror = function() {
+        clearTimeout(timeout);
+        optionElement.attr("data-ping", "-1");
+        optionElement.text(currentText + " - 不可用");
+        optionElement.removeClass("option-available").addClass("option-unavailable");
+    };
+
+    img.src = url + "/favicon.ico?" + new Date().getTime();
+}
         function enter(obj) {
             var domainLines = $("#domainLines");
             var selectLine = domainLines.val();
