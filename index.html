@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.3</title>
+    <title>迈凯伦 v1.9</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -161,29 +161,51 @@ function tryProxyServers(url, startTime, currentText, optionElement) {
     ];
     
     var currentProxy = 0;
+    var isChecking = true;
+    
+    // 设置总超时(15秒)
+    var timeoutId = setTimeout(function() {
+        if(isChecking) {
+            isChecking = false;
+            updateStatus(false, startTime, currentText, optionElement);
+            console.log("Proxy check timed out for URL: " + url);
+        }
+    }, 15000);
     
     function tryNextProxy() {
-        if(currentProxy >= proxyServers.length) {
-            updateStatus(false, startTime, currentText, optionElement);
-            console.log("All proxy servers failed for URL: " + url);
+        if(!isChecking || currentProxy >= proxyServers.length) {
+            if(isChecking) {
+                isChecking = false;
+                updateStatus(false, startTime, currentText, optionElement);
+                console.log("All proxy servers failed for URL: " + url);
+            }
+            clearTimeout(timeoutId);
             return;
         }
         
         var proxyUrl = proxyServers[currentProxy] + encodeURIComponent(url);
         console.log("Trying proxy server: " + proxyUrl);
         
+        var ajaxTimeout = 3000; // 单个请求超时时间
+        
         $.ajax({
             url: proxyUrl,
             type: "GET",
-            timeout: 5000, // 增加超时时间
-            success: function() {
-                console.log("Proxy server succeeded: " + proxyServers[currentProxy]);
-                updateStatus(true, startTime, currentText, optionElement);
+            timeout: ajaxTimeout,
+            success: function(data, status, xhr) {
+                if(isChecking) {
+                    isChecking = false;
+                    clearTimeout(timeoutId);
+                    console.log("Proxy server succeeded: " + proxyServers[currentProxy]);
+                    updateStatus(true, startTime, currentText, optionElement);
+                }
             },
             error: function(xhr, status, error) {
-                console.log("Proxy server failed: " + proxyServers[currentProxy] + ", Error: " + error);
-                currentProxy++;
-                tryNextProxy();
+                if(status !== "abort") {
+                    console.log("Proxy server failed: " + proxyServers[currentProxy] + ", Error: " + error);
+                    currentProxy++;
+                    tryNextProxy();
+                }
             }
         });
     }
