@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.20</title>
+    <title>迈凯伦 v1.0</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -87,7 +87,13 @@
 
         </div>
     </main>
-    <iframe style=" width:100%; height:100%; display:none;"></iframe>
+    <iframe style="width:100%; height:100%; display:none; border:none;"></iframe>
+    <style>
+        .spinner-border {
+            width: 3rem; 
+            height: 3rem;
+        }
+    </style>
     
     <!-- Alert Modal -->
     <div class="modal fade" id="alertModal" tabindex="-1" aria-hidden="true" style="display: none;">
@@ -157,24 +163,14 @@
             var selectLine = getCookie('selline');
             console.log("Current selected line from cookie:", selectLine);
             if (selectLine && selectLine.length > 0) {
-            // Ensure HTTPS protocol
-            var httpsUrl = selectLine.startsWith('http://') ? 
-                selectLine.replace('http://', 'https://') : 
-                selectLine.startsWith('https://') ? selectLine : 'https://' + selectLine;
-            
-            $.ajax({
-                type: "get",
-                cache: false,
-                url: httpsUrl + "/Api/ApiWeb/LoginCheckStateCb",
-                dataType: "jsonp",
-                jsonp: 'cb',
-                success: function (data) {
-                        if (data.Code == 1) {
-                            $("main").hide();
-                            $("iframe").attr("src", selectLine + '/User').show();
-                        }
-                    }
-                });
+                // Ensure HTTPS protocol
+                var httpsUrl = selectLine.startsWith('http://') ? 
+                    selectLine.replace('http://', 'https://') : 
+                    selectLine.startsWith('https://') ? selectLine : 'https://' + selectLine;
+                
+                console.log("Loading saved line:", httpsUrl);
+                $("main").hide();
+                $("iframe").attr("src", httpsUrl + '/User').show();
             }
             $.ajax({
                 type: "get",
@@ -198,32 +194,115 @@
                 }
             });
         });
+        // List of available API endpoints for checking host status
+        const apiEndpoints = [
+            {
+                name: "JSONP",
+                check: function(host, callbackName) {
+                    var script = document.createElement('script');
+                    script.src = host + "/Api/ApiWeb/LoginCheckStateCb?cb=" + callbackName;
+                    return script;
+                }
+            },
+            {
+                name: "HTTPBin",
+                check: function(host) {
+                    return fetch('https://httpbin.org/get?url=' + encodeURIComponent(host))
+                        .then(response => response.ok ? {status: "success"} : {status: "error"});
+                }
+            },
+            {
+                name: "CORS-Anywhere",
+                check: function(host) {
+                    return fetch('https://cors-anywhere.herokuapp.com/' + host)
+                        .then(response => response.ok ? {status: "success"} : {status: "error"});
+                }
+            }
+        ];
+
         function pingHost(host, element) {
             var start = new Date().getTime();
             var timeout = 5000;
             var timer;
+            var currentApiIndex = 0;
             
             // Ensure HTTPS protocol
             var httpsHost = host.startsWith('http://') ? 
                 host.replace('http://', 'https://') : 
                 host.startsWith('https://') ? host : 'https://' + host;
             
-            // Use free public API for status check
-            var apiUrl = 'https://httpbin.org/get?url=' + encodeURIComponent(httpsHost);
+            function tryNextApi() {
+                if (currentApiIndex >= apiEndpoints.length) {
+                    // All APIs failed
+                    markAsUnavailable();
+                    return;
+                }
+                
+                var api = apiEndpoints[currentApiIndex];
+                console.log("Trying API:", api.name);
+                
+                if (api.name === "JSONP") {
+                    // JSONP approach
+                    var callbackName = 'pingCallback_' + element[0].id;
+                    var script = api.check(httpsHost, callbackName);
+                    
+                    window[callbackName] = function(data) {
+                        clearTimeout(timer);
+                        markAsAvailable(start);
+                        document.body.removeChild(script);
+                        delete window[callbackName];
+                    };
+                    
+                    timer = setTimeout(function() {
+                        document.body.removeChild(script);
+                        delete window[callbackName];
+                        currentApiIndex++;
+                        tryNextApi();
+                    }, timeout);
+                    
+                    document.body.appendChild(script);
+                } else {
+                    // Fetch API approach
+                    var apiPromise = api.check(httpsHost);
+                    
+                    timer = setTimeout(function() {
+                        currentApiIndex++;
+                        tryNextApi();
+                    }, timeout);
+                    
+                    apiPromise.then(function(result) {
+                        clearTimeout(timer);
+                        if (result.status === "success") {
+                            markAsAvailable(start);
+                        } else {
+                            currentApiIndex++;
+                            tryNextApi();
+                        }
+                    }).catch(function() {
+                        clearTimeout(timer);
+                        currentApiIndex++;
+                        tryNextApi();
+                    });
+                }
+            }
             
-            fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error('Network error');
-                    var end = new Date().getTime();
-                    var latency = end - start;
-                    element.text("可用 " + latency + "ms").removeClass("ping-bad").addClass("ping-good");
-                })
-                .catch(error => {
-                    element.text("不可用").removeClass("ping-good").addClass("ping-bad");
-                    setTimeout(function() {
-                        pingHost(host, element);
-                    }, 30000);
-                });
+            function markAsAvailable(startTime) {
+                var end = new Date().getTime();
+                var latency = end - startTime;
+                element.text("可用 " + latency + "ms").removeClass("ping-bad").addClass("ping-good");
+                setTimeout(function() {
+                    pingHost(host, element);
+                }, 30000);
+            }
+            
+            function markAsUnavailable() {
+                element.text("不可用").removeClass("ping-good").addClass("ping-bad");
+                setTimeout(function() {
+                    pingHost(host, element);
+                }, 30000);
+            }
+            
+            tryNextApi();
         }
 
         function JsonpData(data) {
@@ -252,9 +331,33 @@
                 
                 if (selectedLine) {
                     console.log("Selected line exists, proceeding...");
-                    addCookie('selline', selectedLine, 240, "", "");
+                    // Ensure HTTPS protocol
+                    var httpsUrl = selectedLine.startsWith('http://') ? 
+                        selectedLine.replace('http://', 'https://') : 
+                        selectedLine.startsWith('https://') ? selectedLine : 'https://' + selectedLine;
+                    
+                    console.log("Final URL to load:", httpsUrl);
+                    addCookie('selline', httpsUrl, 240, "", "");
                     $("main").hide();
-                    $("iframe").attr("src", selectedLine).show();
+                    $("iframe").attr("src", "").hide(); // Clear previous content
+                    
+                    // Show loading indicator
+                    var loadingHtml = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;justify-content:center;align-items:center;z-index:9999;">' +
+                                     '<div class="spinner-border text-primary" role="status">' +
+                                     '<span class="visually-hidden">Loading...</span></div></div>';
+                    $("body").append(loadingHtml);
+                    
+                    // Load iframe with timeout
+                    var iframe = $("iframe");
+                    iframe.on('load', function() {
+                        $(".spinner-border").parent().remove();
+                        iframe.show();
+                    });
+                    
+                    setTimeout(function() {
+                        $(".spinner-border").parent().remove();
+                        iframe.attr("src", httpsUrl).show();
+                    }, 1000);
                 } else {
                     console.log("No line selected, attempting to show modal");
                     try {
