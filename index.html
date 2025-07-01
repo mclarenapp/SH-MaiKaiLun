@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.4</title>
+    <title>迈凯伦 v1.2</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -111,8 +111,27 @@ function pingTest(url, optionElement) {
     optionElement.text(currentText + " - 检测中...");
     optionElement.removeClass("option-available option-unavailable");
 
-    // 方法1: 尝试JSONP方式检测API接口
-    if(!isGitHubPages) {
+    if(isGitHubPages) {
+        // 在GitHub Pages环境下使用后端API检测
+        $.ajax({
+            url: "https://your-backend-api.herokuapp.com/ping",
+            type: "POST",
+            data: { url: url },
+            timeout: 5000,
+            success: function(response) {
+                if(response.success) {
+                    var latency = Math.round(performance.now() - startTime);
+                    updateStatus(true, startTime, currentText, optionElement);
+                } else {
+                    updateStatus(false, startTime, currentText, optionElement);
+                }
+            },
+            error: function() {
+                updateStatus(false, startTime, currentText, optionElement);
+            }
+        });
+    } else {
+        // 本地环境下使用原有检测方式
         $.ajax({
             url: url + "/Api/ApiWeb/LoginCheckStateCb",
             type: "GET",
@@ -123,99 +142,21 @@ function pingTest(url, optionElement) {
                 updateStatus(true, startTime, currentText, optionElement);
             },
             error: function() {
-                tryMethod2(url, startTime, currentText, optionElement, isGitHubPages);
-            }
-        });
-    } else {
-        tryMethod2(url, startTime, currentText, optionElement, isGitHubPages);
-    }
-}
-
-function tryMethod2(url, startTime, currentText, optionElement, isGitHubPages) {
-    // 确保使用HTTPS
-    var httpsUrl = url.replace(/^http:/, 'https:');
-    
-    $.ajax({
-        url: httpsUrl,
-        type: "GET",
-        timeout: 2000,
-        success: function() {
-            updateStatus(true, startTime, currentText, optionElement);
-        },
-        error: function(xhr, status, error) {
-            if(status === "error" && error === "") {
-                // 可能是混合内容被阻止，尝试代理
-                tryProxyServers(url, startTime, currentText, optionElement);
-            } else if(isGitHubPages) {
-                tryProxyServers(url, startTime, currentText, optionElement);
-            } else {
-                updateStatus(false, startTime, currentText, optionElement);
-            }
-        }
-    });
-}
-
-function tryProxyServers(url, startTime, currentText, optionElement) {
-    // 多个备用代理服务器列表
-    var proxyServers = [
-        "https://api.codetabs.com/v1/proxy/?quest=",
-        "https://cors-anywhere.herokuapp.com/",
-        "https://thingproxy.freeboard.io/fetch/",
-        "https://proxy.cors.sh/",
-        "https://corsproxy.io/?"
-    ];
-    
-    var currentProxy = 0;
-    var isChecking = true;
-    
-    // 设置总超时(15秒)
-    var timeoutId = setTimeout(function() {
-        if(isChecking) {
-            isChecking = false;
-            updateStatus(false, startTime, currentText, optionElement);
-            console.log("Proxy check timed out for URL: " + url);
-        }
-    }, 15000);
-    
-    function tryNextProxy() {
-        if(!isChecking || currentProxy >= proxyServers.length) {
-            if(isChecking) {
-                isChecking = false;
-                updateStatus(false, startTime, currentText, optionElement);
-                console.log("All proxy servers failed for URL: " + url);
-            }
-            clearTimeout(timeoutId);
-            return;
-        }
-        
-        var proxyUrl = proxyServers[currentProxy] + encodeURIComponent(url);
-        console.log("Trying proxy server: " + proxyUrl);
-        
-        var ajaxTimeout = 3000; // 单个请求超时时间
-        
-        $.ajax({
-            url: proxyUrl,
-            type: "GET",
-            timeout: ajaxTimeout,
-            success: function(data, status, xhr) {
-                if(isChecking) {
-                    isChecking = false;
-                    clearTimeout(timeoutId);
-                    console.log("Proxy server succeeded: " + proxyServers[currentProxy]);
-                    updateStatus(true, startTime, currentText, optionElement);
-                }
-            },
-            error: function(xhr, status, error) {
-                if(status !== "abort") {
-                    console.log("Proxy server failed: " + proxyServers[currentProxy] + ", Error: " + error);
-                    currentProxy++;
-                    tryNextProxy();
-                }
+                var httpsUrl = url.replace(/^http:/, 'https:');
+                $.ajax({
+                    url: httpsUrl,
+                    type: "GET",
+                    timeout: 2000,
+                    success: function() {
+                        updateStatus(true, startTime, currentText, optionElement);
+                    },
+                    error: function() {
+                        updateStatus(false, startTime, currentText, optionElement);
+                    }
+                });
             }
         });
     }
-    
-    tryNextProxy();
 }
 
 function updateStatus(success, startTime, currentText, optionElement) {
