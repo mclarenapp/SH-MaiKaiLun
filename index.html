@@ -1,12 +1,10 @@
-
-
 <!DOCTYPE html>
 <html>
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.0</title>
+    <title>迈凯伦 v1.1</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -98,36 +96,39 @@
 
         function pingTest(url, optionElement) {
             var startTime = performance.now();
-            var img = new Image();
-            img.onload = function() {
-                var latency = Math.round(performance.now() - startTime);
-                optionElement.attr("data-ping", latency);
-                var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
-                optionElement.text(currentText + " - " + latency + "ms (可用)");
-                optionElement.removeClass("option-unavailable").addClass("option-available");
-            };
-            img.onerror = function() {
-                // 如果图片加载失败，尝试直接访问首页
-                $.ajax({
-                    url: url,
-                    type: "GET",
-                    timeout: 3000,
-                    success: function() {
+            // 尝试JSONP方式检测API接口
+            $.ajax({
+                url: url + "/Api/ApiWeb/LoginCheckStateCb",
+                type: "GET",
+                dataType: "jsonp",
+                jsonp: 'cb',
+                timeout: 3000,
+                success: function(data) {
+                    var latency = Math.round(performance.now() - startTime);
+                    optionElement.attr("data-ping", latency);
+                    var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
+                    optionElement.text(currentText + " - " + latency + "ms (可用)");
+                    optionElement.removeClass("option-unavailable").addClass("option-available");
+                },
+                error: function() {
+                    // 如果JSONP失败，尝试图片加载方式
+                    var img = new Image();
+                    img.onload = function() {
                         var latency = Math.round(performance.now() - startTime);
                         optionElement.attr("data-ping", latency);
                         var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
                         optionElement.text(currentText + " - " + latency + "ms (可用)");
                         optionElement.removeClass("option-unavailable").addClass("option-available");
-                    },
-                    error: function() {
+                    };
+                    img.onerror = function() {
                         optionElement.attr("data-ping", "-1");
                         var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
                         optionElement.text(currentText + " - 不可用");
                         optionElement.removeClass("option-available").addClass("option-unavailable");
-                    }
-                });
-            };
-            img.src = url + "/favicon.ico?" + new Date().getTime();
+                    };
+                    img.src = url + "/favicon.ico?" + new Date().getTime();
+                }
+            });
         }
         function enter(obj) {
             var domainLines = $("#domainLines");
