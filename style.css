@@ -19,13 +19,14 @@ body {
 
 .container {
   background-color: white;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-  max-width: 500px;
-  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 90%;
   text-align: center;
   transition: all 0.3s ease;
+  margin: 0 auto;
 }
 
 .container:hover {
@@ -126,10 +127,23 @@ iframe {
 /* 响应式调整 */
 @media (max-width: 576px) {
   .container {
-    padding: 1.5rem;
+    padding: 1rem;
+    width: 85%;
+    max-width: 350px;
   }
   
   .logo {
-    max-width: 120px;
+    max-width: 100px;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-select {
+    padding: 0.5rem;
+    margin-bottom: 1rem;
   }
 }
