@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.5</title>
+    <title>迈凯伦 v1.6</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -137,8 +137,24 @@ function pingTest(url, optionElement) {
                 },
                 error: function() {
                     optionElement.attr("data-ping", "-1");
-                    optionElement.text(currentText + " - 不可用");
+                    var finalText = currentText + " - 不可用";
+                    optionElement.text(finalText);
                     optionElement.removeClass("option-available").addClass("option-unavailable");
+                    
+                    // 如果是GitHub Pages环境，尝试使用服务器端检测
+                    if(window.location.host.includes('github.io')) {
+                        $.ajax({
+                            url: "https://api.codetabs.com/v1/proxy/?quest=" + url,
+                            type: "GET",
+                            timeout: 3000,
+                            success: function() {
+                                var latency = Math.round(performance.now() - startTime);
+                                optionElement.attr("data-ping", latency);
+                                optionElement.text(currentText + " - " + latency + "ms (可用)");
+                                optionElement.removeClass("option-unavailable").addClass("option-available");
+                            }
+                        });
+                    }
                 }
             });
         }
