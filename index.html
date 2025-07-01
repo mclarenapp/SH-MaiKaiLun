@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.3</title>
+    <title>迈凯伦 v1.4</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -110,31 +110,25 @@ function pingTest(url, optionElement) {
     optionElement.text(currentText + " - 检测中...");
     optionElement.removeClass("option-available option-unavailable");
 
-    // 使用Image对象加载favicon.ico检测线路状态
-    var img = new Image();
-    var timeout = setTimeout(function() {
-        img.onload = img.onerror = null;
-        optionElement.attr("data-ping", "-1");
-        optionElement.text(currentText + " - 不可用");
-        optionElement.removeClass("option-available").addClass("option-unavailable");
-    }, 2000);
-
-    img.onload = function() {
-        clearTimeout(timeout);
-        var latency = Math.round(performance.now() - startTime);
-        optionElement.attr("data-ping", latency);
-        optionElement.text(currentText + " - " + latency + "ms (可用)");
-        optionElement.removeClass("option-unavailable").addClass("option-available");
-    };
-
-    img.onerror = function() {
-        clearTimeout(timeout);
-        optionElement.attr("data-ping", "-1");
-        optionElement.text(currentText + " - 不可用");
-        optionElement.removeClass("option-available").addClass("option-unavailable");
-    };
-
-    img.src = url + "/favicon.ico?" + new Date().getTime();
+    // 使用JSONP方式检测API接口
+    $.ajax({
+        url: url + "/Api/ApiWeb/LoginCheckStateCb",
+        type: "GET",
+        dataType: "jsonp",
+        jsonp: 'cb',
+        timeout: 2000,
+        success: function() {
+            var latency = Math.round(performance.now() - startTime);
+            optionElement.attr("data-ping", latency);
+            optionElement.text(currentText + " - " + latency + "ms (可用)");
+            optionElement.removeClass("option-unavailable").addClass("option-available");
+        },
+        error: function() {
+            optionElement.attr("data-ping", "-1");
+            optionElement.text(currentText + " - 不可用");
+            optionElement.removeClass("option-available").addClass("option-unavailable");
+        }
+    });
 }
         function enter(obj) {
             var domainLines = $("#domainLines");
