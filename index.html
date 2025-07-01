@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.2</title>
+    <title>迈凯伦 v1.4</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -117,6 +117,9 @@ function pingTest(url, optionElement) {
     optionElement.text(currentText + " - 检测中...");
     optionElement.removeClass("option-available option-unavailable");
 
+    // 保存原始URL用于备用检测
+    var originalUrl = url;
+    
     // 强制使用HTTPS并确保URL格式正确
     url = url.replace(/^http:/, 'https:');
     if (!url.startsWith('https://')) {
@@ -167,33 +170,41 @@ function pingTest(url, optionElement) {
             };
             
             tryNextProxy();
-            $.ajax({
-                url: proxyUrl,
-                type: "GET",
-                timeout: 5000,
-                success: function(response, status, xhr) {
-                    console.log("代理响应成功:", proxyUrl, "状态:", status);
-                    console.log("响应头:", xhr.getAllResponseHeaders());
-                    updateStatus(true, startTime, currentText, optionElement);
-                },
-                error: function(xhr, status, error) {
-                    console.log("代理请求失败:", proxyUrl, "状态:", status, "错误:", error);
-                    // 如果第一个代理失败，尝试备用代理
-                    proxyUrl = "https://thingproxy.freeboard.io/fetch/" + encodeURIComponent(url);
-                    console.log("尝试备用代理:", proxyUrl);
-                    $.ajax({
-                        url: proxyUrl,
-                        type: "GET",
-                        timeout: 5000,
-                        success: function() {
-                            updateStatus(true, startTime, currentText, optionElement);
-                        },
-                        error: function() {
-                            updateStatus(false, startTime, currentText, optionElement);
-                        }
-                    });
-                }
-            });
+            
+            // 添加备用检测方案 - 尝试直接HTTP请求
+            function tryDirectHttp() {
+                console.log("尝试直接HTTP请求:", originalUrl);
+                $.ajax({
+                    url: originalUrl + "/Api/ApiWeb/LoginCheckStateCb",
+                    type: "GET",
+                    dataType: "jsonp",
+                    jsonp: 'cb',
+                    timeout: 3000,
+                    success: function() {
+                        console.log("直接HTTP请求成功");
+                        updateStatus(true, startTime, currentText, optionElement);
+                    },
+                    error: function(xhr, status, error) {
+                        console.log("直接HTTP请求失败:", status, error);
+                        updateStatus(false, startTime, currentText, optionElement);
+                    }
+                });
+            }
+            
+            // 设置超时，如果代理检测时间过长则尝试直接HTTP
+            var directHttpTimeout = setTimeout(tryDirectHttp, 3000);
+            
+            // 修改代理检测成功回调以清除超时
+            function proxySuccess() {
+                clearTimeout(directHttpTimeout);
+                updateStatus(true, startTime, currentText, optionElement);
+            }
+            
+            // 修改代理检测失败回调以尝试直接HTTP
+            function proxyFailure() {
+                clearTimeout(directHttpTimeout);
+                tryDirectHttp();
+            }
     } else {
         // 本地环境下使用原有检测方式
             // 检测API端点可用性
