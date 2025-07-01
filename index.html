@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.9</title>
+    <title>迈凯伦线路选择 v1.0</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -200,32 +200,40 @@
         });
         function pingHost(host, element) {
             var start = new Date().getTime();
-            var controller = new AbortController();
-            var signal = controller.signal;
-            
-            // 设置5秒超时
-            setTimeout(() => controller.abort(), 5000);
+            var timeout = 5000;
+            var timer;
             
             // Ensure HTTPS protocol
             var httpsHost = host.startsWith('http://') ? 
                 host.replace('http://', 'https://') : 
                 host.startsWith('https://') ? host : 'https://' + host;
             
-            fetch(httpsHost + "/Api/ApiWeb/LoginCheckStateCb?cb=ping", {
-                signal: signal,
-                mode: 'no-cors'
-            })
-            .then(() => {
+            // Create script element for JSONP
+            var script = document.createElement('script');
+            script.src = httpsHost + "/Api/ApiWeb/LoginCheckStateCb?cb=pingCallback_" + element[0].id;
+            
+            // Define callback function
+            window['pingCallback_' + element[0].id] = function(data) {
+                clearTimeout(timer);
                 var end = new Date().getTime();
                 var latency = end - start;
                 element.text("可用 " + latency + "ms").removeClass("ping-bad").addClass("ping-good");
-            })
-            .catch(() => {
+                document.body.removeChild(script);
+                delete window['pingCallback_' + element[0].id];
+            };
+            
+            // Set timeout
+            timer = setTimeout(function() {
                 element.text("不可用").removeClass("ping-good").addClass("ping-bad");
+                document.body.removeChild(script);
+                delete window['pingCallback_' + element[0].id];
                 setTimeout(function() {
                     pingHost(host, element);
                 }, 30000);
-            });
+            }, timeout);
+            
+            // Add script to document
+            document.body.appendChild(script);
         }
 
         function JsonpData(data) {
