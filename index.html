@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.4</title>
+    <title>迈凯伦 v1.2</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -117,12 +117,16 @@ function pingTest(url, optionElement) {
     optionElement.text(currentText + " - 检测中...");
     optionElement.removeClass("option-available option-unavailable");
 
-    // 调试信息
-    console.log("当前环境:", isGitHubPages ? "GitHub Pages" : "本地环境");
-    console.log("检测URL:", url);
+    // 强制使用HTTPS并确保URL格式正确
+    url = url.replace(/^http:/, 'https:');
+    if (!url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    
+    // 移除URL末尾的斜杠
+    url = url.replace(/\/$/, '');
 
-        // 强制使用HTTPS
-        url = url.replace(/^http:/, 'https:');
+    console.log("格式化后的URL:", url);
         
         if(isGitHubPages) {
             // 在GitHub Pages环境下使用多个CORS代理检测
@@ -143,20 +147,23 @@ function pingTest(url, optionElement) {
                 var proxyUrl = proxyUrls[currentProxy];
                 console.log("尝试代理:", proxyUrl);
                 
-                $.ajax({
-                    url: proxyUrl,
-                    type: "GET",
-                    timeout: 5000,
-                    success: function(response, status, xhr) {
-                        console.log("代理成功:", proxyUrl);
-                        updateStatus(true, startTime, currentText, optionElement);
-                    },
-                    error: function(xhr, status, error) {
-                        console.log("代理失败:", proxyUrl, "错误:", error);
-                        currentProxy++;
-                        tryNextProxy();
+            $.ajax({
+                url: proxyUrl,
+                type: "GET",
+                timeout: 5000,
+                success: function(response, status, xhr) {
+                    console.log("代理成功:", proxyUrl);
+                    updateStatus(true, startTime, currentText, optionElement);
+                },
+                error: function(xhr, status, error) {
+                    console.log("代理失败:", proxyUrl, "状态:", status, "错误:", error);
+                    if (xhr.status) {
+                        console.log("HTTP状态码:", xhr.status);
                     }
-                });
+                    currentProxy++;
+                    tryNextProxy();
+                }
+            });
             };
             
             tryNextProxy();
@@ -189,30 +196,42 @@ function pingTest(url, optionElement) {
             });
     } else {
         // 本地环境下使用原有检测方式
-        $.ajax({
-            url: url + "/Api/ApiWeb/LoginCheckStateCb",
-            type: "GET",
-            dataType: "jsonp",
-            jsonp: 'cb',
-            timeout: 2000,
-            success: function() {
-                updateStatus(true, startTime, currentText, optionElement);
-            },
-            error: function() {
-                var httpsUrl = url.replace(/^http:/, 'https:');
+            // 检测API端点可用性
+            var apiEndpoints = [
+                "/Api/ApiWeb/LoginCheckStateCb",
+                "/api/health",
+                "/"
+            ];
+            
+            var currentEndpoint = 0;
+            
+            function tryNextEndpoint() {
+                if (currentEndpoint >= apiEndpoints.length) {
+                    updateStatus(false, startTime, currentText, optionElement);
+                    return;
+                }
+                
+                var endpoint = apiEndpoints[currentEndpoint];
+                console.log("尝试端点:", endpoint);
+                
                 $.ajax({
-                    url: httpsUrl,
+                    url: url + endpoint,
                     type: "GET",
-                    timeout: 2000,
+                    dataType: endpoint === "/Api/ApiWeb/LoginCheckStateCb" ? "jsonp" : null,
+                    jsonp: endpoint === "/Api/ApiWeb/LoginCheckStateCb" ? 'cb' : null,
+                    timeout: 3000,
                     success: function() {
                         updateStatus(true, startTime, currentText, optionElement);
                     },
-                    error: function() {
-                        updateStatus(false, startTime, currentText, optionElement);
+                    error: function(xhr, status, error) {
+                        console.log("端点检测失败:", endpoint, "状态:", status, "错误:", error);
+                        currentEndpoint++;
+                        tryNextEndpoint();
                     }
                 });
             }
-        });
+            
+            tryNextEndpoint();
     }
 }
 
