@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.4</title>
+    <title>迈凯伦 v1.2</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
@@ -102,6 +102,7 @@
         }
 
 function pingTest(url, optionElement) {
+    console.log("开始检测线路:", url);
     var startTime = performance.now();
     var isGitHubPages = window.location.host.includes('github.io');
     
@@ -111,6 +112,10 @@ function pingTest(url, optionElement) {
     optionElement.text(currentText + " - 检测中...");
     optionElement.removeClass("option-available option-unavailable");
 
+    // 调试信息
+    console.log("当前环境:", isGitHubPages ? "GitHub Pages" : "本地环境");
+    console.log("检测URL:", url);
+
         if(isGitHubPages) {
             // 在GitHub Pages环境下使用第三方CORS代理检测
             var proxyUrl = "https://cors-anywhere.herokuapp.com/" + encodeURIComponent(url);
@@ -118,12 +123,16 @@ function pingTest(url, optionElement) {
                 url: proxyUrl,
                 type: "GET",
                 timeout: 5000,
-                success: function() {
+                success: function(response, status, xhr) {
+                    console.log("代理响应成功:", proxyUrl, "状态:", status);
+                    console.log("响应头:", xhr.getAllResponseHeaders());
                     updateStatus(true, startTime, currentText, optionElement);
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.log("代理请求失败:", proxyUrl, "状态:", status, "错误:", error);
                     // 如果第一个代理失败，尝试备用代理
                     proxyUrl = "https://thingproxy.freeboard.io/fetch/" + encodeURIComponent(url);
+                    console.log("尝试备用代理:", proxyUrl);
                     $.ajax({
                         url: proxyUrl,
                         type: "GET",
