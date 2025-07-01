@@ -9,20 +9,10 @@
     <title>迈凯伦 v1.0</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
-
-    <style>
-        html,
-        body {
-            height: 100%;
-            font-size: 12px;
-        }
-
-        body {
-            display: flex;
-            align-items: center;
-            background-color: #f5f5f5;
-        }
-    </style>
+    <link href="style.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
 </head>
 
@@ -35,14 +25,14 @@
 
         </div>
     </main>
-    <iframe style=" width:100%; height:100%; display:none;"></iframe>
+    <iframe style="position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; display:none;"></iframe>
     <script type="text/html" id="tpl-lines">
         <form id="myform">
             <h3 class="mb-2">选择可用线路</h3>
             <select class="form-select mb-2" size="5" id="domainLines">
             <option selected>请点击选择对应产品的可用线路</option>
                 {{each $data}}
-                <option value="{{$value.host}}">{{$value.title}}</option>
+                <option value="{{$value.host}}" data-ping="-1">{{$value.title}} - 检测中...</option>
                 {{/each}}
             </select>
             <button class="w-100 btn btn-lg btn-primary" type="button" onclick="enter(this);">进 入 --></button>
@@ -79,6 +69,55 @@
         function JsonpData(data) {
             var html = $(template("tpl-lines", data.lines));
             $("#block-selLines").html(html[0]);
+            
+            // 检测每条线路的ping延迟
+            function refreshPing() {
+                $("#domainLines option").each(function() {
+                    var url = $(this).val();
+                    if(url && url !== "请点击选择对应产品的可用线路") {
+                        pingTest(url, $(this));
+                    }
+                });
+            }
+            
+            // 初始检测
+            refreshPing();
+            // 设置3秒自动刷新(调试用)
+            setInterval(refreshPing, 10000);
+            
+            // 高亮选中的选项
+            var selectLine = getCookie('selline');
+            if(selectLine) {
+                $("#domainLines option").each(function() {
+                    if($(this).val() === selectLine) {
+                        $(this).addClass("option-highlight");
+                    }
+                });
+            }
+        }
+
+        function pingTest(url, optionElement) {
+            var startTime = performance.now();
+            $.ajax({
+                url: url + "/Api/ApiWeb/LoginCheckStateCb",
+                type: "GET",
+                dataType: "jsonp",
+                jsonp: 'cb',
+                timeout: 3000,
+                success: function(data) {
+                    var latency = Math.round(performance.now() - startTime);
+                    optionElement.attr("data-ping", latency);
+                    var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
+                    optionElement.text(currentText + " - " + latency + "ms (可用)");
+                    optionElement.removeClass("option-unavailable").addClass("option-available");
+                },
+                error: function() {
+                    optionElement.attr("data-ping", "-1");
+                    var currentText = optionElement.text().replace(/ - \d+ms \(可用\)$/, "").replace(/ - 不可用$/, "").replace(/ - 检测中...$/, "");
+                    optionElement.text(currentText + " - 不可用");
+                    optionElement.removeClass("option-available").addClass("option-unavailable");
+                }
+            });
         }
         function enter(obj) {
             var domainLines = $("#domainLines");
