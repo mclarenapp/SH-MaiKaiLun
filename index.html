@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>迈凯伦 v1.2</title>
+    <title>迈凯伦 v1.9</title>
     <link href="https://cdn.staticfile.org/bootstrap/5.2.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.staticfile.org/bootstrap-icons/1.10.2/font/bootstrap-icons.min.css" rel="stylesheet">
 
@@ -157,13 +157,18 @@
             var selectLine = getCookie('selline');
             console.log("Current selected line from cookie:", selectLine);
             if (selectLine && selectLine.length > 0) {
-                $.ajax({
-                    type: "get",
-                    cache: false,
-                    url: selectLine + "/Api/ApiWeb/LoginCheckStateCb",
-                    dataType: "jsonp",
-                    jsonp: 'cb',
-                    success: function (data) {
+            // Ensure HTTPS protocol
+            var httpsUrl = selectLine.startsWith('http://') ? 
+                selectLine.replace('http://', 'https://') : 
+                selectLine.startsWith('https://') ? selectLine : 'https://' + selectLine;
+            
+            $.ajax({
+                type: "get",
+                cache: false,
+                url: httpsUrl + "/Api/ApiWeb/LoginCheckStateCb",
+                dataType: "jsonp",
+                jsonp: 'cb',
+                success: function (data) {
                         if (data.Code == 1) {
                             $("main").hide();
                             $("iframe").attr("src", selectLine + '/User').show();
@@ -177,6 +182,13 @@
                 url: "https://mclarenapp.github.io/SH_Lines/sh-mkl_alist.txt",
                 dataType: "jsonp",
                 success: function(data) {
+                    // Convert all hosts to HTTPS
+                    data.lines = data.lines.map(function(line) {
+                        line.host = line.host.startsWith('http://') ? 
+                            line.host.replace('http://', 'https://') : 
+                            line.host.startsWith('https://') ? line.host : 'https://' + line.host;
+                        return line;
+                    });
                     JsonpData(data);
                     var selectLine = getCookie('selline');
                     if (selectLine.length > 0) {
@@ -194,7 +206,12 @@
             // 设置5秒超时
             setTimeout(() => controller.abort(), 5000);
             
-            fetch(host + "/Api/ApiWeb/LoginCheckStateCb?cb=ping", {
+            // Ensure HTTPS protocol
+            var httpsHost = host.startsWith('http://') ? 
+                host.replace('http://', 'https://') : 
+                host.startsWith('https://') ? host : 'https://' + host;
+            
+            fetch(httpsHost + "/Api/ApiWeb/LoginCheckStateCb?cb=ping", {
                 signal: signal,
                 mode: 'no-cors'
             })
